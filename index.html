@@ -1,0 +1,109 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Pug Fly</title>
+  <style>
+    body {
+      margin: 0;
+      overflow: hidden;
+    }
+    canvas {
+      background: url('background.jpg') no-repeat center center;
+      background-size: cover;
+      display: block;
+    }
+  </style>
+</head>
+<body>
+  <canvas id="gameCanvas" width="480" height="640"></canvas>
+  <audio id="bgMusic" src="music.mp3" loop autoplay></audio>
+  <script>
+    const canvas = document.getElementById("gameCanvas");
+    const ctx = canvas.getContext("2d");
+
+    const gravity = 0.5;
+    const jump = -8;
+    let pugY = 150;
+    let velocity = 0;
+    let score = 0;
+
+    const pugImg = new Image();
+    pugImg.src = "pug_sprite.png";
+
+    const pipes = [];
+    let pipeGap = 140;
+
+    document.addEventListener("keydown", () => {
+      velocity = jump;
+    });
+
+    function drawPug() {
+      ctx.drawImage(pugImg, 100, pugY, 48, 48);
+    }
+
+    function drawPipes() {
+      pipes.forEach(pipe => {
+        ctx.fillStyle = "green";
+        ctx.fillRect(pipe.x, 0, 50, pipe.top);
+        ctx.fillRect(pipe.x, pipe.top + pipeGap, 50, canvas.height - pipe.top - pipeGap);
+      });
+    }
+
+    function updatePipes() {
+      if (pipes.length === 0 || pipes[pipes.length - 1].x < canvas.width - 200) {
+        const topHeight = Math.random() * 200 + 50;
+        pipes.push({ x: canvas.width, top: topHeight });
+      }
+
+      for (let i = 0; i < pipes.length; i++) {
+        pipes[i].x -= 2;
+        if (pipes[i].x + 50 < 0) {
+          pipes.splice(i, 1);
+          score++;
+        }
+      }
+    }
+
+    function checkCollision() {
+      for (let pipe of pipes) {
+        if (100 + 48 > pipe.x && 100 < pipe.x + 50) {
+          if (pugY < pipe.top || pugY + 48 > pipe.top + pipeGap) {
+            return true;
+          }
+        }
+      }
+      return pugY > canvas.height || pugY < 0;
+    }
+
+    function drawScore() {
+      ctx.fillStyle = "white";
+      ctx.font = "30px Arial";
+      ctx.fillText("Score: " + score, 10, 50);
+    }
+
+    function gameLoop() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      drawPug();
+      drawPipes();
+      drawScore();
+
+      velocity += gravity;
+      pugY += velocity;
+
+      updatePipes();
+
+      if (checkCollision()) {
+        alert("¡Teo se estrelló! Puntuación: " + score);
+        document.location.reload();
+      } else {
+        requestAnimationFrame(gameLoop);
+      }
+    }
+
+    pugImg.onload = () => {
+      gameLoop();
+    };
+  </script>
+</body>
+</html>
