@@ -2,108 +2,138 @@
 <!DOCTYPE html>
 <html>
 <head>
+  <meta charset="UTF-8">
   <title>Pug Fly</title>
   <style>
-    body {
-      margin: 0;
-      overflow: hidden;
+    body { margin: 0; overflow: hidden; background: #70c5ce; font-family: sans-serif; }
+    #startScreen, #gameOverScreen {
+      position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      background: rgba(0,0,0,0.5); color: white; font-size: 2rem; z-index: 10;
     }
-    canvas {
-      background: url('background.jpg') no-repeat center center;
-      background-size: cover;
-      display: block;
+    button {
+      font-size: 1.5rem; padding: 0.5em 1em; margin-top: 1em;
+      border: none; border-radius: 10px; background: #ffcc00; color: #000;
+      cursor: pointer;
     }
   </style>
 </head>
 <body>
-  <canvas id="gameCanvas" width="480" height="640"></canvas>
-  <audio id="bgMusic" src="music.mp3" loop autoplay></audio>
+  <div id="startScreen">
+    <h1>Pug Fly</h1>
+    <button onclick="startGame()">¡Jugar ahora!</button>
+  </div>
+  <div id="gameOverScreen" style="display: none;">
+    <div id="scoreText"></div>
+    <button onclick="restartGame()">Reiniciar juego</button>
+  </div>
+  <canvas id="gameCanvas"></canvas>
   <script>
-    const canvas = document.getElementById("gameCanvas");
-    const ctx = canvas.getContext("2d");
+    let canvas = document.getElementById('gameCanvas');
+    let ctx = canvas.getContext('2d');
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
 
-    const gravity = 0.5;
-    const jump = -8;
-    let pugY = 150;
-    let velocity = 0;
+    let startScreen = document.getElementById('startScreen');
+    let gameOverScreen = document.getElementById('gameOverScreen');
+    let scoreText = document.getElementById('scoreText');
+
+    let gameStarted = false;
+    let gameOver = false;
     let score = 0;
+    let dogY = canvas.height / 2;
+    let velocity = 0;
+    let gravity = 0.5;
+    let jump = -10;
+    let pipes = [];
 
-    const pugImg = new Image();
-    pugImg.src = "pug_sprite.png";
-
-    const pipes = [];
-    let pipeGap = 140;
-
-    document.addEventListener("keydown", () => {
-      velocity = jump;
-    });
-
-    function drawPug() {
-      ctx.drawImage(pugImg, 100, pugY, 48, 48);
+    function drawDog() {
+      ctx.fillStyle = 'brown';
+      ctx.beginPath();
+      ctx.arc(100, dogY, 30, 0, Math.PI * 2);
+      ctx.fill();
     }
 
     function drawPipes() {
-      pipes.forEach(pipe => {
-        ctx.fillStyle = "green";
-        ctx.fillRect(pipe.x, 0, 50, pipe.top);
-        ctx.fillRect(pipe.x, pipe.top + pipeGap, 50, canvas.height - pipe.top - pipeGap);
+      ctx.fillStyle = 'green';
+      pipes.forEach(p => {
+        ctx.fillRect(p.x, 0, 50, p.gapY);
+        ctx.fillRect(p.x, p.gapY + 150, 50, canvas.height);
       });
     }
 
-    function updatePipes() {
-      if (pipes.length === 0 || pipes[pipes.length - 1].x < canvas.width - 200) {
-        const topHeight = Math.random() * 200 + 50;
-        pipes.push({ x: canvas.width, top: topHeight });
-      }
-
-      for (let i = 0; i < pipes.length; i++) {
-        pipes[i].x -= 2;
-        if (pipes[i].x + 50 < 0) {
-          pipes.splice(i, 1);
-          score++;
-        }
+    function resetGame() {
+      score = 0;
+      dogY = canvas.height / 2;
+      velocity = 0;
+      pipes = [];
+      for (let i = 0; i < 3; i++) {
+        pipes.push({ x: canvas.width + i * 300, gapY: Math.random() * (canvas.height - 300) + 50 });
       }
     }
 
-    function checkCollision() {
-      for (let pipe of pipes) {
-        if (100 + 48 > pipe.x && 100 < pipe.x + 50) {
-          if (pugY < pipe.top || pugY + 48 > pipe.top + pipeGap) {
-            return true;
-          }
-        }
-      }
-      return pugY > canvas.height || pugY < 0;
+    function startGame() {
+      startScreen.style.display = 'none';
+      resetGame();
+      gameStarted = true;
+      gameLoop();
     }
 
-    function drawScore() {
-      ctx.fillStyle = "white";
-      ctx.font = "30px Arial";
-      ctx.fillText("Score: " + score, 10, 50);
+    function endGame() {
+      gameStarted = false;
+      gameOver = true;
+      scoreText.innerText = `¡Teo se estrelló! Puntuación: ${score}`;
+      gameOverScreen.style.display = 'flex';
+    }
+
+    function restartGame() {
+      gameOverScreen.style.display = 'none';
+      resetGame();
+      gameOver = false;
+      gameStarted = true;
+      gameLoop();
     }
 
     function gameLoop() {
+      if (!gameStarted) return;
       ctx.clearRect(0, 0, canvas.width, canvas.height);
-      drawPug();
-      drawPipes();
-      drawScore();
 
       velocity += gravity;
-      pugY += velocity;
+      dogY += velocity;
 
-      updatePipes();
-
-      if (checkCollision()) {
-        alert("¡Teo se estrelló! Puntuación: " + score);
-        document.location.reload();
-      } else {
-        requestAnimationFrame(gameLoop);
+      if (dogY > canvas.height || dogY < 0) {
+        endGame();
+        return;
       }
+
+      pipes.forEach(p => {
+        p.x -= 4;
+        if (p.x + 50 < 0) {
+          p.x = canvas.width;
+          p.gapY = Math.random() * (canvas.height - 300) + 50;
+          score++;
+        }
+        if (100 > p.x && 100 < p.x + 50) {
+          if (dogY < p.gapY || dogY > p.gapY + 150) {
+            endGame();
+            return;
+          }
+        }
+      });
+
+      drawDog();
+      drawPipes();
+
+      requestAnimationFrame(gameLoop);
     }
 
-    pugImg.onload = () => {
-      gameLoop();
-    };
+    window.addEventListener('keydown', () => {
+      if (gameStarted && !gameOver) velocity = jump;
+    });
+
+    window.addEventListener('touchstart', () => {
+      if (gameStarted && !gameOver) velocity = jump;
+    });
   </script>
 </body>
 </html>
